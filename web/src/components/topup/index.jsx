@@ -157,8 +157,16 @@ const TopUp = () => {
       const res = await API.post('/api/user/topup', {
         key: redemptionCode,
       });
-      const { success, message, data } = res.data;
+      const { success, message, data: redeemDataRaw } = res.data;
       if (success) {
+        const data =
+          redeemDataRaw && typeof redeemDataRaw === 'object'
+            ? Number(redeemDataRaw.quota) || 0
+            : Number(redeemDataRaw) || 0;
+        const redeemedPlanTitle =
+          redeemDataRaw && typeof redeemDataRaw === 'object'
+            ? redeemDataRaw.subscription_plan_title || ''
+            : '';
         showSuccess(t('兑换成功！'));
         Modal.success({
           title: t('兑换成功！'),
@@ -171,6 +179,10 @@ const TopUp = () => {
             quota: userState.user.quota + data,
           };
           userDispatch({ type: 'login', payload: updatedUser });
+        }
+        await getUserQuota();
+        if (redeemedPlanTitle) {
+          await getSubscriptionSelf();
         }
         setRedemptionCode('');
       } else {

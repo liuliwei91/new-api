@@ -3,6 +3,7 @@ package controller
 import (
 	"net/http"
 	"strconv"
+	"strings"
 	"unicode/utf8"
 
 	"github.com/QuantumNous/new-api/common"
@@ -77,6 +78,10 @@ func AddRedemption(c *gin.Context) {
 		common.ApiErrorI18n(c, i18n.MsgRedemptionCountMax)
 		return
 	}
+	if valid, msg := validateSubscriptionPlan(c, redemption.SubscriptionPlanId, 0); !valid {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": msg})
+		return
+	}
 	if valid, msg := validateExpiredTime(c, redemption.ExpiredTime); !valid {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": msg})
 		return
@@ -90,6 +95,7 @@ func AddRedemption(c *gin.Context) {
 			Key:         key,
 			CreatedTime: common.GetTimestamp(),
 			Quota:       redemption.Quota,
+			SubscriptionPlanId: redemption.SubscriptionPlanId,
 			ExpiredTime: redemption.ExpiredTime,
 		}
 		err = cleanRedemption.Insert()
@@ -140,6 +146,10 @@ func UpdateRedemption(c *gin.Context) {
 		return
 	}
 	if statusOnly == "" {
+		if valid, msg := validateSubscriptionPlan(c, redemption.SubscriptionPlanId, cleanRedemption.SubscriptionPlanId); !valid {
+			c.JSON(http.StatusOK, gin.H{"success": false, "message": msg})
+			return
+		}
 		if valid, msg := validateExpiredTime(c, redemption.ExpiredTime); !valid {
 			c.JSON(http.StatusOK, gin.H{"success": false, "message": msg})
 			return
@@ -147,6 +157,7 @@ func UpdateRedemption(c *gin.Context) {
 		// If you add more fields, please also update redemption.Update()
 		cleanRedemption.Name = redemption.Name
 		cleanRedemption.Quota = redemption.Quota
+		cleanRedemption.SubscriptionPlanId = redemption.SubscriptionPlanId
 		cleanRedemption.ExpiredTime = redemption.ExpiredTime
 	}
 	if statusOnly != "" {
@@ -183,5 +194,28 @@ func validateExpiredTime(c *gin.Context, expired int64) (bool, string) {
 	if expired != 0 && expired < common.GetTimestamp() {
 		return false, i18n.T(c, i18n.MsgRedemptionExpireTimeInvalid)
 	}
+	return true, ""
+}
+
+func validateSubscriptionPlan(c *gin.Context, planId int, currentPlanId int) (bool, string) {
+	if planId <= 0 {
+		return true, ""
+	}
+
+	plan, err := model.GetSubscriptionPlanById(planId)
+	if err != nil || plan == nil {
+		return false, "所选套餐不存在"
+	}
+
+	// Allow keeping the same previously bound plan even if it is now disabled.
+	if !plan.Enabled && planId != currentPlanId {
+		return false, "只能绑定已启用的套餐"
+	}
+
+	plan.Title = strings.TrimSpace(plan.Title)
+	if plan.Title == "" {
+		return false, "所选套餐不存在"
+	}
+
 	return true, ""
 }

@@ -27,9 +27,6 @@ import {
   REDEMPTION_ACTIONS,
 } from '../../../constants/redemption.constants';
 
-/**
- * Check if redemption code is expired
- */
 export const isExpired = (record) => {
   return (
     record.status === REDEMPTION_STATUS.UNUSED &&
@@ -38,16 +35,10 @@ export const isExpired = (record) => {
   );
 };
 
-/**
- * Render timestamp
- */
 const renderTimestamp = (timestamp) => {
   return <>{timestamp2string(timestamp)}</>;
 };
 
-/**
- * Render redemption code status
- */
 const renderStatus = (status, record, t) => {
   if (isExpired(record)) {
     return (
@@ -73,9 +64,6 @@ const renderStatus = (status, record, t) => {
   );
 };
 
-/**
- * Get redemption code table column definitions
- */
 export const getRedemptionsColumns = ({
   t,
   manageRedemption,
@@ -118,6 +106,21 @@ export const getRedemptionsColumns = ({
       },
     },
     {
+      title: t('订阅套餐'),
+      dataIndex: 'subscription_plan_id',
+      render: (_, record) => {
+        if (!record.subscription_plan_id) {
+          return <div>-</div>;
+        }
+        return (
+          <Tag color='blue' shape='circle'>
+            {record.subscription_plan_title ||
+              `#${record.subscription_plan_id}`}
+          </Tag>
+        );
+      },
+    },
+    {
       title: t('创建时间'),
       dataIndex: 'created_time',
       render: (text) => {
@@ -135,7 +138,7 @@ export const getRedemptionsColumns = ({
       title: t('兑换人ID'),
       dataIndex: 'used_user_id',
       render: (text) => {
-        return <div>{text === 0 ? t('无') : text}</div>;
+        return <div>{text === 0 ? '-' : text}</div>;
       },
     },
     {
@@ -144,7 +147,6 @@ export const getRedemptionsColumns = ({
       fixed: 'right',
       width: 205,
       render: (text, record) => {
-        // Create dropdown menu items for more operations
         const moreMenuItems = [
           {
             node: 'item',
